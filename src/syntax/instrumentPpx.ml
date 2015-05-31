@@ -57,6 +57,14 @@ let apply_nolabs ?loc lid el =
 let marker file ofs kind marked =
   let lst = InstrumentState.get_points_for_file file in
   if List.exists (fun p -> p.Common.offset = ofs) lst then
+    let currentl, rest = List.partition (fun p -> p.Common.offset = ofs) lst in
+    let current = List.hd currentl in
+    if current.Common.kind <> kind then
+      begin
+        let nlst = { current with Common.kind = kind } :: rest in
+        let _ = Printf.eprintf "OVERITE\n" in
+        InstrumentState.set_points_for_file file nlst
+      end;
     raise Already_marked
   else
     let idx = List.length lst in
@@ -78,7 +86,7 @@ let rec is_bare_mapping e =
   match e.pexp_desc with
   | Pexp_function _ -> true
   | Pexp_match _ -> true
-  | Pexp_sequence (e', _) -> is_bare_mapping e'
+  | Pexp_sequence (e', _) -> is_bare_mapping e' 
   | _ -> false
 
 (* Wraps an expression with a marker, returning the passed expression
@@ -86,6 +94,7 @@ let rec is_bare_mapping e =
    has a ghost location, construct instrumentation is disabled, or a
    special comments indicates to ignore line. *)
 let wrap_expr k e =
+  let _ = Printf.eprintf "Asked to wrap %s\n" (Common.string_of_point_kind k) in
   let enabled = List.assoc k InstrumentArgs.kinds in
   let loc = e.pexp_loc in
   let dont_wrap =
@@ -109,17 +118,27 @@ let wrap_expr k e =
         e
       else
         let marked = List.mem line c.CommentsPpx.marked_lines in
+        let _ = Printf.eprintf "Actually wrapping: %s\n" (Common.string_of_point_kind k) in
         Exp.sequence ~loc (marker file ofs k marked) e
-    with Already_marked -> e
+    with Already_marked -> 
+      let _ = Printf.eprintf "But it's already marked: %s\n"
+        (Common.string_of_point_kind k) in
+      e
 
 (* Wraps a sequence. *)
 let rec wrap_seq k e =
   let _loc = e.pexp_loc in
   match e.pexp_desc with
   | Pexp_sequence (e1, e2) ->
-      Exp.sequence (wrap_seq k e1) (wrap_seq Common.Sequence e2)
+      begin
+        (*Printf.eprintf "seq\n"; *)
+        Exp.sequence (wrap_expr k e1) (wrap_seq Common.Sequence e2)
+      end
   | _ ->
-      wrap_expr k e
+      begin
+        (*Printf.eprintf "NOT SEQ\n"; *)
+        wrap_expr k e
+      end
 
 let wrap_case k case =
   match case.pc_guard with
@@ -240,7 +259,7 @@ let typoo si =
   | Pstr_primitive _  -> "primitive"
   | Pstr_type _       -> "type"
   | Pstr_typext _     -> "typeext"
-  | Pstr_exception _  -> "exception" 
+  | Pstr_exception _  -> "exception"
   | Pstr_module _     -> "module"
   | Pstr_recmodule _  -> "recmodule"
   | Pstr_modtype _    -> "modtype"
@@ -251,7 +270,7 @@ let typoo si =
   | Pstr_attribute _  -> "attribute"
   | Pstr_extension _  -> "extension"
   *)
- 
+
 (* The actual "instrumenter" object, marking expressions. *)
 class instrumenter = object (self)
 
@@ -318,11 +337,20 @@ class instrumenter = object (self)
           Exp.ifthenelse ~loc e1 (wrap_expr Common.If_then e2)
             (match e3 with Some x -> Some (wrap_expr Common.If_then x) | None -> None)
       | Pexp_sequence _ ->
-          (wrap_seq Common.Sequence e')
+          begin
+            (*Printf.eprintf "Sequence !\n"; *)
+            (wrap_seq Common.Sequence e')
+          end
       | Pexp_while (e1, e2) ->
-          Exp.while_ ~loc e1 (wrap_seq Common.While e2)
+          begin
+            (*Printf.eprintf "While !\n"; *)
+            Exp.while_ ~loc e1 (wrap_seq Common.While e2)
+          end
       | Pexp_for (id, e1, e2, dir, e3) ->
-          Exp.for_ ~loc id e1 e2 dir (wrap_seq Common.For e3)
+          begin
+            (*Printf.eprintf "For !\n";  *)
+            Exp.for_ ~loc id e1 e2 dir (wrap_seq Common.For e3)
+          end
       | _ -> e'
 
   method! structure_item si =
