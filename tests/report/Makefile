@@ -8,7 +8,7 @@ clean::
 	@rm -f *.cm* *.out *.o *.jo result.* $(EXECUTABLE)
 
 compile::
-	@$(PATH_OCAML_BIN)/$(COMPILER) $(COMPILE_FLAGS) -o $(EXECUTABLE) source.ml
+	@$(PATH_OCAML_BIN)/$(COMPILER) $(COMPILE_FLAGS) -dsource -o $(EXECUTABLE) source.ml
 
 run::
 	@$(RUN)$(EXECUTABLE) -inf 0 -sup 3 > /dev/null
@@ -16,8 +16,8 @@ run::
 
 report::
 	@rm -fr report
-	@$(REPORT) -bisect result.bisect *.out
-	@$(REPORT) -csv result.csv *.out
+	@$(REPORT) -verbose -bisect result.bisect *.out
+	@$(REPORT) -verbose -csv result.csv *.out
 	@$(REPORT) -dump-dtd result.dtd *.out
 	@$(REPORT) -dump result.dump *.out
 	@$(REPORT) -text result.text *.out
@@ -32,7 +32,10 @@ else
 endif
 	@(for ext in bisect csv dtd dump html text xml xml-emma; do \
 		echo "     testing '$$ext' format ..."; \
-		diff -q result.$$ext reference.$$ext && rm -f result.$$ext; \
+		diff -q result.$$ext reference.$$ext; \
 	done || exit 0)
-	@rm -fr report
-	@rm -f *.cm* *.out *.o *.jo $(EXECUTABLE)
+
+
+#		diff -q result.$$ext reference.$$ext && rm -f result.$$ext; \
+#	@rm -fr report
+#	@rm -f *.cm* *.out *.o *.jo $(EXECUTABLE)
