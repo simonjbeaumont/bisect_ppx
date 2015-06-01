@@ -37,10 +37,11 @@ let () =
         !files;
       Hashtbl.iter
         (fun file points ->
-          Common.try_out_channel
-            true
-            (Common.cmp_file_of_ml_file file)
-            (fun channel -> Common.write_points channel points file))
+          if file <> "//toplevel//" then
+            Common.try_out_channel
+              true
+              (Common.cmp_file_of_ml_file file)
+              (fun channel -> Common.write_points channel points file))
         points)
 
 let get_points_for_file file =
