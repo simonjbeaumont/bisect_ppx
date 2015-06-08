@@ -14,3 +14,8 @@ let f2 b x =
     x * x
   else
     x
+
+type 'a typ
+let f3 : type a b. string -> a typ -> string =
+  fun name x -> match name, x with
+  | s, _ -> "Hello"

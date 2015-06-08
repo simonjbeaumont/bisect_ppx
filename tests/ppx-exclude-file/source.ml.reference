@@ -4,3 +4,8 @@ let g s =
   Bisect.Runtime.mark "source.ml" 1;
   for i = 1 to 5 do (Bisect.Runtime.mark "source.ml" 0; print_endline s) done
 let f2 b x = if b then x * x else x
+type 'a typ
+let f3 : 'a 'b . string -> 'a typ -> string= fun (type a) -> fun (type b) ->
+  (fun name  -> fun x  -> match (name, x) with | (s,_) -> "Hello" : string ->
+                                                                    a typ ->
+                                                                    string)
